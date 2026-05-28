@@ -1,0 +1,71 @@
+body {
+  width: 380px;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: #1d2226;
+}
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-bottom: 1px solid #e6e9ec;
+}
+header h1 { margin: 0; font-size: 14px; }
+.header-actions { display: flex; gap: 6px; }
+.header-actions button {
+  background: transparent; color: #0a66c2; border: 1px solid #0a66c2;
+  border-radius: 14px; padding: 3px 10px; font-weight: 600;
+  cursor: pointer; font-size: 12px;
+}
+.header-actions button.primary { background: #0a66c2; color: #fff; }
+.header-actions button:hover { filter: brightness(0.95); }
+
+#list { padding: 8px 12px; max-height: 420px; overflow-y: auto; }
+.tpl { border: 1px solid #e6e9ec; border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+.tpl input, .tpl textarea {
+  width: 100%; box-sizing: border-box; border: 1px solid #d0d7de;
+  border-radius: 6px; padding: 6px 8px; font: inherit; margin-bottom: 6px;
+}
+.tpl textarea { min-height: 80px; resize: vertical; font-family: inherit; }
+.tpl-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.tpl-actions button {
+  background: transparent; border: 1px solid #d0d7de; border-radius: 14px;
+  padding: 3px 10px; cursor: pointer; font-size: 12px;
+}
+.tpl-actions .del { color: #b24020; border-color: #f0c4ba; }
+
+.status {
+  margin: 8px 12px 0; padding: 6px 10px; border-radius: 6px;
+  background: #eef7ee; color: #1f6f3a; font-size: 12px;
+}
+.status.error { background: #fdecea; color: #b24020; }
+
+#settings { border-bottom: 1px solid #e6e9ec; }
+#settings summary {
+  padding: 10px 12px; font-weight: 600; font-size: 13px; cursor: pointer;
+  color: #0a66c2; list-style: none;
+}
+#settings summary::-webkit-details-marker { display: none; }
+#settings summary::before { content: "▸ "; }
+#settings[open] summary::before { content: "▾ "; }
+.settings-body { padding: 0 12px 12px; }
+.field { display: block; margin-bottom: 10px; }
+.field > span { display: block; font-size: 12px; color: #56687a; margin-bottom: 4px; }
+.field input, .field select, .field textarea {
+  width: 100%; box-sizing: border-box; border: 1px solid #d0d7de;
+  border-radius: 6px; padding: 6px 8px; font: inherit;
+}
+.field textarea { min-height: 60px; resize: vertical; }
+.settings-hint { padding: 0; }
+.checkbox-field { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+.checkbox-field input { margin-top: 2px; }
+.reset-btn {
+  background: transparent; color: #b24020; border: 1px solid #f0c4ba;
+  border-radius: 14px; padding: 4px 10px; font-size: 12px; font-weight: 600;
+  cursor: pointer; margin-bottom: 8px;
+}
+.reset-btn:hover { background: #fdecea; }
+
+.hint { padding: 0 12px 12px; color: #56687a; font-size: 12px; }
+.hint code, .hint kbd {
+  background: #f3f6f8; padding: 1px 5px; border-radius: 4px; font-size: 11px;
+}

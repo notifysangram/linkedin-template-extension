@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Message Templates</h1>
+      <div class="header-actions">
+        <button id="export" type="button" title="Export templates as JSON">Export</button>
+        <button id="import" type="button" title="Import templates from JSON">Import</button>
+        <button id="add" type="button" class="primary">+ New</button>
+      </div>
+    </header>
+    <input type="file" id="import-file" accept="application/json,.json" hidden />
+    <div id="status" class="status" hidden></div>
+
+    <details id="settings">
+      <summary>AI Settings (Portkey → Claude)</summary>
+      <div class="settings-body">
+        <label class="field">
+          <span>Portkey API key</span>
+          <input type="password" id="portkey-key" placeholder="pk-..." autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Virtual key (optional — leave blank if your key has a default provider)</span>
+          <input type="password" id="virtual-key" placeholder="optional" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Model</span>
+          <select id="model">
+            <option value="claude-opus-4-7">Opus 4.7 — most capable</option>
+            <option value="claude-sonnet-4-6">Sonnet 4.6 — faster, cheaper</option>
+            <option value="claude-haiku-4-5">Haiku 4.5 — fastest, cheapest</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Reply preferences (tone, what to say)</span>
+          <textarea id="reply-instructions" placeholder="e.g. Friendly and brief. I'm open to senior engineering roles; ask for a JD and comp range."></textarea>
+        </label>
+        <label class="field">
+          <span>Gateway base URL (advanced — leave default unless self-hosting)</span>
+          <input type="text" id="base-url" placeholder="https://api.portkey.ai/v1" autocomplete="off" />
+        </label>
+        <p class="hint settings-hint">
+          Stored locally on this device only. The model string must be one your Portkey virtual key / config allows.
+        </p>
+      </div>
+    </details>
+
+    <details id="auto-settings">
+      <summary>Auto-draft replies</summary>
+      <div class="settings-body">
+        <label class="checkbox-field">
+          <input type="checkbox" id="auto-enabled" />
+          <span>Auto-draft a reply when I open a conversation</span>
+        </label>
+        <button type="button" id="reset-backlog" class="reset-btn">Reset (re-draft threads opened this session)</button>
+        <div id="auto-status" class="status" hidden></div>
+        <p class="hint settings-hint">
+          When on, opening any conversation generates your decline reply straight into the message box — review and hit Send. It only fills an empty box, so it never overwrites something you've typed, and it drafts each thread once per browsing session. Nothing is ever sent automatically.
+        </p>
+      </div>
+    </details>
+    <div id="list"></div>
+    <p class="hint">
+      Use <code>{{firstName}}</code> to insert the recipient's first name.
+      Shortcut: <kbd>⌘⇧L</kbd> / <kbd>Ctrl+Shift+L</kbd>.
+    </p>
+    <script src="popup.js"></script>
+  </body>
+</html>

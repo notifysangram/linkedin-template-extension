@@ -653,6 +653,51 @@
     return (ed.innerText || "").replace(/\u200b/g, "").trim().length === 0;
   }
 
+  // The conversation partner's full name, from the thread header.
+  function headerFullName(form) {
+    const containers = [threadOf(form), document];
+    const selectors = [
+      ".msg-entity-lockup__entity-title",
+      ".msg-overlay-bubble-header__title",
+      ".msg-thread__link-to-profile",
+      ".msg-compose__profile-row .msg-entity-lockup__entity-title",
+      "h2.msg-overlay-bubble-header__title",
+      ".msg-conversation-card__participant-names",
+      "header .artdeco-entity-lockup__title",
+    ];
+    for (const root of containers) {
+      for (const sel of selectors) {
+        const el = root.querySelector?.(sel);
+        const full = cleanName(el?.textContent);
+        if (full) return full;
+      }
+    }
+    return "";
+  }
+
+  // Name on the most recent message group (who sent the last message).
+  function lastSenderName(form) {
+    const thread = threadOf(form);
+    let nodes = thread.querySelectorAll?.(".msg-s-message-group__name");
+    if (!nodes || !nodes.length) {
+      nodes = thread.querySelectorAll?.(".msg-s-message-group__meta");
+    }
+    if (nodes && nodes.length) {
+      const raw = (nodes[nodes.length - 1].textContent || "").split("·")[0];
+      return cleanName(raw);
+    }
+    return "";
+  }
+
+  // true = partner sent last (reply pending), false = you sent last (skip),
+  // null = couldn't tell.
+  function threadNeedsReply(form) {
+    const partner = headerFullName(form).toLowerCase();
+    const last = lastSenderName(form).toLowerCase();
+    if (!partner || !last) return null;
+    return last === partner;
+  }
+
   async function maybeAutoDraftOpenThread() {
     if (autoOpenInProgress || !alive()) return;
     const id = currentThreadId();
@@ -667,6 +712,15 @@
       autoDraftedThreads.add(id); // never clobber a draft / typed text
       return;
     }
+
+    // Only draft when the OTHER person sent the last message. If you replied
+    // last, nothing is pending — skip (this is the already-handled case).
+    if (threadNeedsReply(form) === false) {
+      autoDraftedThreads.add(id);
+      LOG("skip: you sent the last message", id);
+      return;
+    }
+
     const transcript = getTranscript(form);
     if (!transcript) return; // messages not rendered yet; retry on next mutation
 

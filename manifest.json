@@ -6,7 +6,6 @@
   "permissions": ["storage", "downloads", "tabs"],
   "host_permissions": [
     "https://www.linkedin.com/*",
-    "https://recruiter.linkedin.com/*",
     "https://api.portkey.ai/*"
   ],
   "icons": {
@@ -28,7 +27,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/*", "https://recruiter.linkedin.com/*"],
+      "matches": ["https://www.linkedin.com/*"],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"

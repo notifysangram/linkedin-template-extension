@@ -154,6 +154,20 @@
 
   function insertIntoEditor(editor, text) {
     editor.focus();
+
+    // LinkedIn Recruiter uses a plain <textarea>
+    if (editor.tagName === "TEXTAREA") {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype, "value"
+      ).set;
+      setter.call(editor, text);
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      editor.dispatchEvent(new Event("change", { bubbles: true }));
+      editor.selectionStart = editor.selectionEnd = text.length;
+      return;
+    }
+
+    // LinkedIn regular — contenteditable
     const placeholder = editor.querySelector("p.msg-form__placeholder");
     if (placeholder) placeholder.remove();
 
@@ -188,21 +202,16 @@
   function editorOf(form) {
     return (
       form.querySelector(".msg-form__contenteditable") ||
-      // LinkedIn Recruiter
-      form.querySelector(".recruiter-messaging-compose__editor [contenteditable='true']") ||
-      form.querySelector("[data-test-id='compose-editor'] [contenteditable='true']") ||
-      form.querySelector(".hiring-messaging-compose [contenteditable='true']") ||
-      form.querySelector("[contenteditable='true']")
+      // LinkedIn Recruiter — plain textarea
+      form.querySelector("textarea[data-test-compose-textarea-input]") ||
+      form.querySelector("textarea.compose-textarea__textarea")
     );
   }
 
   const FORM_SELECTORS = [
     ".msg-form",
-    // LinkedIn Recruiter
-    ".recruiter-messaging-compose",
-    ".hiring-messaging-compose",
-    "[data-test-id='compose-form']",
-    ".thread-compose-form",
+    // LinkedIn Recruiter (stable data-test-id)
+    "[data-test-base-composer-textarea]",
   ];
 
   function findActiveForm() {
@@ -374,10 +383,23 @@
     panel.appendChild(actions);
   }
 
+  function findRecruiterToolbar(form) {
+    // Walk up to find the ancestor containing the quick-actions bar
+    let el = form.parentElement;
+    for (let i = 0; i < 8; i++) {
+      if (!el) break;
+      const qa = el.querySelector("[data-test-quick-actions-container]");
+      if (qa) return qa;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
   function injectButtons(form) {
     const toolbar =
       form.querySelector(".msg-form__left-actions") ||
       form.querySelector(".msg-form__footer") ||
+      findRecruiterToolbar(form) ||
       form;
 
     if (!form.querySelector("." + BTN_CLASS)) {
@@ -726,8 +748,8 @@
   function composeIsEmpty(form) {
     const ed = editorOf(form);
     if (!ed) return false;
+    if (ed.tagName === "TEXTAREA") return !ed.value.trim();
     if (ed.querySelector("p.msg-form__placeholder")) return true;
-    if (ed.getAttribute("data-placeholder") && !ed.textContent?.trim()) return true;
     return (ed.innerText || "").replace(/\u200b/g, "").trim().length === 0;
   }
 

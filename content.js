@@ -851,7 +851,10 @@
     const SENDER_SELECTORS = [
       ".msg-s-message-group__name",
       ".msg-s-message-group__meta",
-      // LinkedIn Recruiter
+      // LinkedIn Recruiter — known + guessed data-test selectors
+      "[data-test-message-sender]",
+      "[data-test-sender-name]",
+      "[data-test-messaging-member-name]",
       ".recruiter-messaging-message__sender-name",
       ".hiring-messaging-message__sender",
       "[data-test-id='message-sender-name']",
@@ -871,8 +874,36 @@
   function threadNeedsReply(form) {
     const partner = headerFullName(form).toLowerCase();
     const last = lastSenderName(form).toLowerCase();
-    if (!partner || !last) return null;
-    return last === partner;
+    if (partner && last) return last === partner;
+
+    // Recruiter fallback: use message alignment.
+    // Sent messages (by you) are right-aligned; received are left-aligned.
+    if (isRecruiter()) {
+      let ancestor = form;
+      for (let i = 0; i < 10; i++) {
+        ancestor = ancestor.parentElement;
+        if (!ancestor || ancestor === document.body) break;
+        for (const sibling of Array.from(ancestor.children)) {
+          if (sibling === form || sibling.contains(form)) continue;
+          if ((sibling.innerText || "").trim().length < 80) continue;
+          // Collect message-like blocks (list items or any leaf-ish block with text)
+          const blocks = Array.from(
+            sibling.querySelectorAll('li, [role="listitem"], article')
+          ).filter(el => (el.innerText || "").trim().length > 5);
+          if (!blocks.length) continue;
+          const lastBlock = blocks[blocks.length - 1];
+          const sibRect = sibling.getBoundingClientRect();
+          const blockRect = lastBlock.getBoundingClientRect();
+          const offset = (blockRect.left + blockRect.width / 2) - (sibRect.left + sibRect.width / 2);
+          if (Math.abs(offset) > 30) {
+            // offset > 0 → right-aligned → you sent last → no reply needed
+            return offset < 0;
+          }
+        }
+      }
+    }
+
+    return null; // truly can't tell
   }
 
   async function maybeAutoDraftOpenThread() {
@@ -890,11 +921,12 @@
       return;
     }
 
-    // Only draft when the OTHER person sent the last message. If you replied
-    // last, nothing is pending — skip (this is the already-handled case).
-    if (threadNeedsReply(form) === false) {
+    // Only draft when CONFIRMED the other person sent the last message.
+    // false = you sent last (skip), null = can't tell (skip to be safe).
+    const needsReply = threadNeedsReply(form);
+    if (needsReply !== true) {
       autoDraftedThreads.add(id);
-      LOG("skip: you sent the last message", id);
+      LOG(needsReply === false ? "skip: you sent the last message" : "skip: couldn't confirm other person sent last", id);
       return;
     }
 

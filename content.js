@@ -205,10 +205,12 @@
   function editorOf(form) {
     return (
       form.querySelector(".msg-form__contenteditable") ||
-      // LinkedIn Recruiter — plain textarea (try specific selectors first, then any textarea)
+      // LinkedIn Recruiter — plain textarea
       form.querySelector("textarea[data-test-compose-textarea-input]") ||
       form.querySelector("textarea.compose-textarea__textarea") ||
-      form.querySelector("textarea")
+      // fallback: any textarea, but ONLY inside the Recruiter compose wrapper
+      // (avoids matching hidden textareas inside normal LinkedIn .msg-form)
+      (form.hasAttribute("data-test-base-composer-textarea") ? form.querySelector("textarea") : null)
     );
   }
 

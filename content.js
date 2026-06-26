@@ -746,6 +746,7 @@
   function currentThreadId() {
     const patterns = [
       /\/messaging\/thread\/([^/?#]+)/,
+      /\/talent\/inbox\/[^/]+\/main\/id\/([^/?#]+)/,
       /\/talent\/inbox\/([^/?#]+)/,
       /\/hiring\/inbox\/([^/?#]+)/,
     ];
@@ -1112,21 +1113,15 @@
     }
   }
 
-  function isLinkedInMessaging() {
-    const p = location.pathname;
-    return (
-      !p.startsWith("/talent/") &&
-      !p.startsWith("/hiring/") &&
-      !p.startsWith("/recruiter/") &&
-      !p.startsWith("/tsahp/")
-    );
-  }
-
   // ---------- boot ----------
-  const observer = new MutationObserver(() => scan());
+  let scanTimer = null;
+  const observer = new MutationObserver(() => {
+    clearTimeout(scanTimer);
+    scanTimer = setTimeout(scan, 300);
+  });
 
   function scan() {
-    if (!alive() || !isLinkedInMessaging()) {
+    if (!alive()) {
       observer.disconnect();
       return;
     }

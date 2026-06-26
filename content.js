@@ -414,7 +414,7 @@
       findRecruiterToolbar(form) ||
       form;
 
-    if (!form.querySelector("." + BTN_CLASS)) {
+    if (!form.querySelector("." + BTN_CLASS) && !toolbar.querySelector("." + BTN_CLASS)) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = BTN_CLASS;
@@ -428,7 +428,7 @@
       toolbar.appendChild(btn);
     }
 
-    if (!form.querySelector("." + AI_BTN_CLASS)) {
+    if (!form.querySelector("." + AI_BTN_CLASS) && !toolbar.querySelector("." + AI_BTN_CLASS)) {
       const aiBtn = document.createElement("button");
       aiBtn.type = "button";
       aiBtn.className = AI_BTN_CLASS;
@@ -1115,10 +1115,20 @@
   }
 
   // ---------- boot ----------
+  // Throttle: run scan() immediately if idle, then at most once per 500ms.
+  // Pure debounce never fires when Ember keeps mutating the DOM continuously.
   let scanTimer = null;
+  let lastScan = 0;
+  const SCAN_INTERVAL = 500;
   const observer = new MutationObserver(() => {
-    clearTimeout(scanTimer);
-    scanTimer = setTimeout(scan, 300);
+    const now = Date.now();
+    if (now - lastScan >= SCAN_INTERVAL) {
+      lastScan = now;
+      scan();
+    } else {
+      clearTimeout(scanTimer);
+      scanTimer = setTimeout(() => { lastScan = Date.now(); scan(); }, SCAN_INTERVAL);
+    }
   });
 
   function scan() {

@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn Message Templates",
-  "version": "1.4.0",
-  "description": "Insert saved reply templates into LinkedIn messages, classify incoming messages with Claude, draft replies, and auto-draft new unreads.",
-  "permissions": ["storage", "downloads"],
+  "version": "1.6.0",
+  "description": "Insert saved reply templates into LinkedIn messages, classify incoming messages with Claude, draft replies, auto-draft new unreads, and track post impressions in an analytics dashboard.",
+  "permissions": ["storage", "downloads", "tabs"],
   "host_permissions": [
     "https://www.linkedin.com/*",
+    "https://recruiter.linkedin.com/*",
     "https://api.portkey.ai/*"
   ],
   "icons": {
@@ -27,7 +28,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/*"],
+      "matches": ["https://www.linkedin.com/*", "https://recruiter.linkedin.com/*"],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"

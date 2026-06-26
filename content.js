@@ -4,6 +4,8 @@
   const PICKER_CLASS = "lmt-picker";
   const PANEL_CLASS = "lmt-ai-panel";
 
+  const isRecruiter = () => location.hostname.includes("recruiter.linkedin.com");
+
   // True only while this content script is still connected to its extension.
   // After the extension is reloaded/updated, chrome.runtime.id becomes
   // undefined and any chrome.* call throws "Extension context invalidated".
@@ -82,6 +84,11 @@
       form.closest(".msg-convo-wrapper") ||
       form.closest(".msg-overlay-conversation-bubble") ||
       form.closest(".scaffold-layout__detail") ||
+      // LinkedIn Recruiter containers
+      form.closest(".recruiter-messaging-thread") ||
+      form.closest(".thread-container") ||
+      form.closest("[data-test-id='thread-view']") ||
+      form.closest(".hiring-messaging-thread") ||
       document
     );
   }
@@ -89,6 +96,7 @@
   function getFirstName(form) {
     const containers = [threadOf(form), document];
     const selectors = [
+      // LinkedIn
       ".msg-entity-lockup__entity-title",
       ".msg-overlay-bubble-header__title",
       ".msg-thread__link-to-profile",
@@ -96,6 +104,13 @@
       "h2.msg-overlay-bubble-header__title",
       ".msg-conversation-card__participant-names",
       "header .artdeco-entity-lockup__title",
+      // LinkedIn Recruiter
+      ".recruiter-messaging-member-name",
+      ".profile-topcard-person-entity__name",
+      "[data-test-id='thread-candidate-name']",
+      ".hiring-messaging-header__name",
+      ".thread-header__name",
+      ".hiring-people-card__name",
     ];
     for (const root of containers) {
       for (const sel of selectors) {
@@ -109,14 +124,28 @@
 
   function getTranscript(form) {
     const thread = threadOf(form);
-    const nodes = thread.querySelectorAll
-      ? thread.querySelectorAll(".msg-s-event-listitem__body")
-      : [];
-    const lines = Array.from(nodes)
-      .map((n) => (n.innerText || "").trim())
-      .filter(Boolean)
-      .slice(-12);
-    return lines.join("\n");
+    if (!thread.querySelectorAll) return "";
+    // Try LinkedIn selector first, then Recruiter fallbacks
+    const TRANSCRIPT_SELECTORS = [
+      ".msg-s-event-listitem__body",
+      // LinkedIn Recruiter
+      ".recruiter-messaging-message__body",
+      ".hiring-messaging-message-body",
+      "[data-test-id='message-body']",
+      ".thread-message__body",
+      ".inmail-message__body",
+    ];
+    for (const sel of TRANSCRIPT_SELECTORS) {
+      const nodes = thread.querySelectorAll(sel);
+      if (nodes.length) {
+        return Array.from(nodes)
+          .map((n) => (n.innerText || "").trim())
+          .filter(Boolean)
+          .slice(-12)
+          .join("\n");
+      }
+    }
+    return "";
   }
 
   function render(template, form) {
@@ -157,17 +186,38 @@
   }
 
   function editorOf(form) {
-    return form.querySelector(".msg-form__contenteditable");
+    return (
+      form.querySelector(".msg-form__contenteditable") ||
+      // LinkedIn Recruiter
+      form.querySelector(".recruiter-messaging-compose__editor [contenteditable='true']") ||
+      form.querySelector("[data-test-id='compose-editor'] [contenteditable='true']") ||
+      form.querySelector(".hiring-messaging-compose [contenteditable='true']") ||
+      form.querySelector("[contenteditable='true']")
+    );
   }
+
+  const FORM_SELECTORS = [
+    ".msg-form",
+    // LinkedIn Recruiter
+    ".recruiter-messaging-compose",
+    ".hiring-messaging-compose",
+    "[data-test-id='compose-form']",
+    ".thread-compose-form",
+  ];
 
   function findActiveForm() {
     const active = document.activeElement;
-    const fromActive = active?.closest?.(".msg-form");
-    if (fromActive) return fromActive;
-    const forms = Array.from(document.querySelectorAll(".msg-form")).filter(
-      (f) => f.offsetParent !== null,
-    );
-    return forms[forms.length - 1] || null;
+    for (const sel of FORM_SELECTORS) {
+      const fromActive = active?.closest?.(sel);
+      if (fromActive) return fromActive;
+    }
+    for (const sel of FORM_SELECTORS) {
+      const forms = Array.from(document.querySelectorAll(sel)).filter(
+        (f) => f.offsetParent !== null,
+      );
+      if (forms.length) return forms[forms.length - 1];
+    }
+    return null;
   }
 
   function placeNear(el, anchor, form) {
@@ -423,11 +473,15 @@
     });
 
   function onMessagingPage() {
-    return (
+    if (location.pathname.startsWith("/messaging")) return true;
+    if (isRecruiter() && (
       location.pathname.startsWith("/messaging") ||
-      !!document.querySelector(
-        ".msg-conversations-container__conversations-list, .msg-conversations-container",
-      )
+      location.pathname.startsWith("/talent/inbox") ||
+      location.pathname.startsWith("/hiring/inbox")
+    )) return true;
+    return !!document.querySelector(
+      ".msg-conversations-container__conversations-list, .msg-conversations-container, " +
+      ".recruiter-messaging-inbox, .hiring-messaging-inbox, [data-test-id='messaging-inbox']"
     );
   }
 
@@ -435,14 +489,24 @@
   // and use its row (closest <li>) to judge unread state. More tolerant of
   // LinkedIn class renames than matching specific list-item classes.
   function threadRows() {
-    const anchors = Array.from(document.querySelectorAll('a[href*="/messaging/thread/"]'));
+    const THREAD_PATTERNS = [
+      /\/messaging\/thread\/([^/?#]+)/,
+      /\/talent\/inbox\/([^/?#]+)/,
+      /\/hiring\/inbox\/([^/?#]+)/,
+    ];
+    const anchors = Array.from(document.querySelectorAll(
+      'a[href*="/messaging/thread/"], a[href*="/talent/inbox/"], a[href*="/hiring/inbox/"]'
+    ));
     const seen = new Set();
     const rows = [];
     for (const a of anchors) {
-      const m = (a.getAttribute("href") || "").match(/\/messaging\/thread\/([^/?#]+)/);
-      if (!m) continue;
-      const id = m[1];
-      if (seen.has(id)) continue;
+      const href = a.getAttribute("href") || "";
+      let id = null;
+      for (const pat of THREAD_PATTERNS) {
+        const m = href.match(pat);
+        if (m) { id = m[1]; break; }
+      }
+      if (!id || seen.has(id)) continue;
       seen.add(id);
       rows.push({ id, anchor: a, row: a.closest("li") || a });
     }
@@ -454,7 +518,8 @@
       if (
         row.querySelector &&
         row.querySelector(
-          ".msg-conversation-card__unread-count, .notification-badge--show, [class*='unread' i]",
+          ".msg-conversation-card__unread-count, .notification-badge--show, [class*='unread' i]," +
+          ".recruiter-messaging-unread-badge, [data-test-id='unread-indicator']",
         )
       ) {
         return true;
@@ -467,7 +532,11 @@
   }
 
   function findThreadAnchor(id) {
-    return document.querySelector(`a[href*="/messaging/thread/${id}"]`);
+    return (
+      document.querySelector(`a[href*="/messaging/thread/${id}"]`) ||
+      document.querySelector(`a[href*="/talent/inbox/${id}"]`) ||
+      document.querySelector(`a[href*="/hiring/inbox/${id}"]`)
+    );
   }
 
   async function waitForThreadRows(timeout = 20000) {
@@ -642,14 +711,23 @@
   let openDraftTimer = null;
 
   function currentThreadId() {
-    const m = location.pathname.match(/\/messaging\/thread\/([^/?#]+)/);
-    return m ? m[1] : null;
+    const patterns = [
+      /\/messaging\/thread\/([^/?#]+)/,
+      /\/talent\/inbox\/([^/?#]+)/,
+      /\/hiring\/inbox\/([^/?#]+)/,
+    ];
+    for (const pat of patterns) {
+      const m = location.pathname.match(pat);
+      if (m) return m[1];
+    }
+    return null;
   }
 
   function composeIsEmpty(form) {
     const ed = editorOf(form);
     if (!ed) return false;
     if (ed.querySelector("p.msg-form__placeholder")) return true;
+    if (ed.getAttribute("data-placeholder") && !ed.textContent?.trim()) return true;
     return (ed.innerText || "").replace(/\u200b/g, "").trim().length === 0;
   }
 
@@ -657,6 +735,7 @@
   function headerFullName(form) {
     const containers = [threadOf(form), document];
     const selectors = [
+      // LinkedIn
       ".msg-entity-lockup__entity-title",
       ".msg-overlay-bubble-header__title",
       ".msg-thread__link-to-profile",
@@ -664,6 +743,12 @@
       "h2.msg-overlay-bubble-header__title",
       ".msg-conversation-card__participant-names",
       "header .artdeco-entity-lockup__title",
+      // LinkedIn Recruiter
+      ".recruiter-messaging-member-name",
+      ".profile-topcard-person-entity__name",
+      "[data-test-id='thread-candidate-name']",
+      ".hiring-messaging-header__name",
+      ".thread-header__name",
     ];
     for (const root of containers) {
       for (const sel of selectors) {
@@ -678,13 +763,20 @@
   // Name on the most recent message group (who sent the last message).
   function lastSenderName(form) {
     const thread = threadOf(form);
-    let nodes = thread.querySelectorAll?.(".msg-s-message-group__name");
-    if (!nodes || !nodes.length) {
-      nodes = thread.querySelectorAll?.(".msg-s-message-group__meta");
-    }
-    if (nodes && nodes.length) {
-      const raw = (nodes[nodes.length - 1].textContent || "").split("·")[0];
-      return cleanName(raw);
+    const SENDER_SELECTORS = [
+      ".msg-s-message-group__name",
+      ".msg-s-message-group__meta",
+      // LinkedIn Recruiter
+      ".recruiter-messaging-message__sender-name",
+      ".hiring-messaging-message__sender",
+      "[data-test-id='message-sender-name']",
+    ];
+    for (const sel of SENDER_SELECTORS) {
+      const nodes = thread.querySelectorAll?.(sel);
+      if (nodes && nodes.length) {
+        const raw = (nodes[nodes.length - 1].textContent || "").split("·")[0];
+        return cleanName(raw);
+      }
     }
     return "";
   }
@@ -755,6 +847,238 @@
     }, 1500);
   }
 
+  // ---------- Impressions Scraper ----------
+  // Collects post analytics from LinkedIn Creator Analytics content page.
+  // Strategy: use a MutationObserver to detect when impression labels
+  // actually land in the DOM, then scrape. Also responds to a manual
+  // "lmt:scrapeNow" message from the popup's "Scrape now" button.
+
+  function isAnalyticsPage() {
+    return /\/analytics\/creator\/content/.test(location.pathname);
+  }
+
+  function parseMetric(str) {
+    if (!str) return 0;
+    const s = String(str).replace(/,/g, '').trim();
+    if (/k$/i.test(s)) return Math.round(parseFloat(s) * 1e3);
+    if (/m$/i.test(s)) return Math.round(parseFloat(s) * 1e6);
+    const n = parseInt(s, 10);
+    return isNaN(n) ? 0 : n;
+  }
+
+  // How many "Impressions" labels are currently visible.
+  function countImpressionLabels() {
+    let count = 0;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: n =>
+        /^\s*impressions?\s*$/i.test(n.textContent)
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_SKIP,
+    });
+    while (walker.nextNode()) count++;
+    return count;
+  }
+
+  let analyticsObserver = null;
+  let scrapeDebounceTimer = null;
+  let lastScrapeCount = 0;   // labels found on last successful scrape
+  let scrapeRunning = false;
+
+  // Debounce: wait 800 ms of DOM quiet before actually scraping.
+  function scheduleDebouncedScrape() {
+    clearTimeout(scrapeDebounceTimer);
+    scrapeDebounceTimer = setTimeout(() => {
+      const n = countImpressionLabels();
+      if (n > 0 && n !== lastScrapeCount) runAnalyticsScrape();
+    }, 800);
+  }
+
+  function startAnalyticsObserver() {
+    if (analyticsObserver) return;           // already watching
+    if (!isAnalyticsPage()) return;
+    analyticsObserver = new MutationObserver(scheduleDebouncedScrape);
+    analyticsObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+    LOG('analytics observer started');
+    // Also try immediately in case the page is already loaded.
+    scheduleDebouncedScrape();
+  }
+
+  function stopAnalyticsObserver() {
+    analyticsObserver?.disconnect();
+    analyticsObserver = null;
+    clearTimeout(scrapeDebounceTimer);
+  }
+
+  function scheduleAnalyticsScrape() {
+    if (!isAnalyticsPage()) { stopAnalyticsObserver(); return; }
+    lastScrapeCount = 0;   // new URL → allow a fresh scrape
+    startAnalyticsObserver();
+  }
+
+  function runAnalyticsScrape(manual = false) {
+    if (!isAnalyticsPage() || !alive() || scrapeRunning) return;
+    scrapeRunning = true;
+
+    const posts = [];
+    const seen  = new Set();
+
+    // Walk every text node whose content is just "Impressions".
+    // From there, navigate the surrounding DOM to find the metric value
+    // and the post row it belongs to.
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: n =>
+        /^\s*impressions?\s*$/i.test(n.textContent)
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_SKIP,
+    });
+
+    let textNode;
+    let idx = 0;
+
+    while ((textNode = walker.nextNode())) {
+      const labelEl = textNode.parentElement;
+      if (!labelEl) continue;
+
+      // --- Find the impression number ---
+      // LinkedIn puts the number either as a sibling element before the label,
+      // or as a nearby ancestor's first numeric child. We try several approaches.
+      let impressions = 0;
+      const parent = labelEl.parentElement;
+
+      if (parent) {
+        // Approach 1: sibling elements before the label in the same parent.
+        for (const kid of Array.from(parent.children)) {
+          if (kid === labelEl) break;
+          const t = (kid.innerText || kid.textContent || '').replace(/,/g, '').trim();
+          const n = parseInt(t, 10);
+          if (!isNaN(n) && n > 0) { impressions = n; break; }
+        }
+
+        // Approach 2: text node immediately before the label.
+        if (!impressions) {
+          const prev = labelEl.previousSibling;
+          if (prev?.nodeType === Node.TEXT_NODE)
+            impressions = parseMetric(prev.textContent);
+        }
+
+        // Approach 3: walk up a few levels and find the first standalone number.
+        if (!impressions) {
+          let up = parent;
+          for (let d = 0; d < 5 && up; d++, up = up.parentElement) {
+            const nums = (up.innerText || '').match(/^\s*[\d,]+\s*$/m);
+            if (nums) { impressions = parseMetric(nums[0]); break; }
+          }
+        }
+      }
+
+      if (!impressions) continue;
+
+      // --- Find the post row (a substantial ancestor) ---
+      let row = labelEl;
+      for (let depth = 0; depth < 15; depth++) {
+        if (!row.parentElement) break;
+        row = row.parentElement;
+        const text = (row.innerText || '').trim();
+        // Stop when we find a container with real prose (not just numbers/labels).
+        if (
+          text.length > 100 &&
+          /[a-zA-Z]{3,}/.test(text)
+        ) break;
+      }
+
+      // --- Extract post text preview ---
+      let preview = '';
+      for (const el of Array.from(row.querySelectorAll('*'))) {
+        if (el.children.length !== 0) continue;
+        const t = (el.innerText || '').trim();
+        if (
+          t.length > 20 &&
+          !/^[\d,.\s%KkMmBb]+$/.test(t) &&
+          !/\b(impression|reaction|comment|repost|share|view|click|like|follow)\b/i.test(t) &&
+          !/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/i.test(t)
+        ) {
+          preview = t;
+          break;
+        }
+      }
+
+      // --- Extract secondary metrics (reactions / comments / shares) ---
+      const allNums = ((row.innerText || '')
+        .match(/\b\d[\d,]*(?:\.\d+)?[KkMm]?\b/g) || [])
+        .map(parseMetric)
+        .filter(n => n > 0 && n !== impressions && n <= impressions);
+
+      // --- Extract date ---
+      let date = '';
+      const timeEl = row.querySelector('time[datetime]');
+      if (timeEl) {
+        date = (timeEl.getAttribute('datetime') || '').slice(0, 10);
+      }
+      if (!date) {
+        const dm = (row.innerText || '').match(
+          /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}/i
+        );
+        if (dm) {
+          const d = new Date(dm[0]);
+          if (!isNaN(d.getTime())) date = d.toISOString().slice(0, 10);
+        }
+      }
+
+      // Dedup key: impressions + first 20 chars of preview.
+      const key = `${impressions}|${preview.slice(0, 20)}`;
+      if (seen.has(key)) { idx++; continue; }
+      seen.add(key);
+
+      posts.push({
+        id: `lmt-${Date.now()}-${idx}`,
+        preview: preview.slice(0, 150),
+        impressions,
+        reactions: allNums[0] || 0,
+        comments:  allNums[1] || 0,
+        shares:    allNums[2] || 0,
+        date,
+        scrapedAt: Date.now(),
+      });
+      idx++;
+    }
+
+    scrapeRunning = false;
+
+    if (!posts.length) {
+      LOG('impressions: 0 posts found — page may still be loading. Try scrolling or click "Scrape now".');
+      if (manual) autoToast('⚠️ No posts found yet — try scrolling the analytics page first, then click Scrape now.');
+      return;
+    }
+
+    lastScrapeCount = countImpressionLabels();
+
+    try {
+      chrome.storage.local.get({ 'lmt:impressions': [] }, data => {
+        if (chrome.runtime.lastError || !alive()) return;
+        const existing = Array.isArray(data['lmt:impressions']) ? data['lmt:impressions'] : [];
+
+        // Merge: new data wins (fresher), then append anything old we don't have.
+        const byKey = new Map();
+        [...posts, ...existing].forEach(p => {
+          const k = `${p.impressions}|${(p.preview || '').slice(0, 20)}`;
+          if (!byKey.has(k)) byKey.set(k, p);
+        });
+        const merged = Array.from(byKey.values()).slice(0, 300);
+
+        chrome.storage.local.set({ 'lmt:impressions': merged }, () => {
+          if (chrome.runtime.lastError) return;
+          const label = manual ? '📊 Scraped' : '📊 Auto-saved';
+          autoToast(`${label} ${posts.length} posts — open the extension to view your dashboard.`);
+          LOG(`impressions stored: ${posts.length} scraped, ${merged.length} total`);
+          // Notify popup to refresh if it's open.
+          try { chrome.runtime.sendMessage({ type: 'lmt:scrapeComplete', count: posts.length }); } catch {}
+        });
+      });
+    } catch (e) {
+      LOG('impressions store error', e);
+    }
+  }
+
   // ---------- boot ----------
   const observer = new MutationObserver(() => scan());
 
@@ -763,15 +1087,26 @@
       observer.disconnect();
       return;
     }
-    document.querySelectorAll(".msg-form").forEach(injectButtons);
+    FORM_SELECTORS.forEach(sel => {
+      document.querySelectorAll(sel).forEach(injectButtons);
+    });
     scheduleOpenDraft();
   }
 
   if (alive()) {
-    chrome.runtime.onMessage.addListener((msg) => {
+    chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg?.type === "lmt:openPicker") {
         const form = findActiveForm();
         if (form) openPicker(form, form.querySelector("." + BTN_CLASS));
+      }
+      if (msg?.type === "lmt:scrapeNow") {
+        if (!isAnalyticsPage()) {
+          sendResponse({ ok: false, error: 'not_analytics_page' });
+        } else {
+          runAnalyticsScrape(true);
+          sendResponse({ ok: true });
+        }
+        return true;
       }
     });
     document.addEventListener("visibilitychange", () => {
@@ -782,4 +1117,14 @@
 
   observer.observe(document.documentElement, { childList: true, subtree: true });
   scan();
+
+  // Kick off analytics scrape when on the right page.
+  if (isAnalyticsPage()) scheduleAnalyticsScrape();
+
+  // Also re-try when the SPA navigates within LinkedIn.
+  window.addEventListener('popstate', scheduleAnalyticsScrape);
+  const _pushState = history.pushState.bind(history);
+  history.pushState = (...args) => { _pushState(...args); scheduleAnalyticsScrape(); };
+  const _replaceState = history.replaceState.bind(history);
+  history.replaceState = (...args) => { _replaceState(...args); scheduleAnalyticsScrape(); };
 })();

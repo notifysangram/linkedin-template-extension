@@ -393,12 +393,26 @@
 
     if (isRecruiterForm) {
       // Recruiter: inject a stable container directly inside the compose wrapper.
-      // Avoid injecting into Ember-managed components (quick-actions) which get wiped on re-render.
+      // Place buttons next to the Send button in the bottom toolbar.
       const CONTAINER_ID = "lmt-recruiter-btns";
-      if (form.querySelector("#" + CONTAINER_ID)) return; // already injected
+      if (document.getElementById(CONTAINER_ID)) return; // already injected
+
+      // Walk up from the form to find the Send button.
+      let sendBtn = null;
+      let ancestor = form;
+      for (let i = 0; i < 8; i++) {
+        ancestor = ancestor.parentElement;
+        if (!ancestor) break;
+        const candidates = ancestor.querySelectorAll("button");
+        for (const b of candidates) {
+          if (b.textContent.trim() === "Send") { sendBtn = b; break; }
+        }
+        if (sendBtn) break;
+      }
+
       const container = document.createElement("div");
       container.id = CONTAINER_ID;
-      container.style.cssText = "display:flex;gap:6px;padding:4px 6px;flex-wrap:wrap;";
+      container.style.cssText = "display:inline-flex;gap:6px;align-items:center;margin-right:8px;";
 
       const btn = document.createElement("button");
       btn.type = "button";
@@ -415,7 +429,12 @@
       aiBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openAiPanel(form, aiBtn); });
 
       container.append(btn, aiBtn);
-      form.appendChild(container);
+
+      if (sendBtn) {
+        sendBtn.parentElement.insertBefore(container, sendBtn);
+      } else {
+        form.appendChild(container); // fallback
+      }
       return;
     }
 

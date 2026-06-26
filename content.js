@@ -1,6 +1,14 @@
 (() => {
-  // Never run on LinkedIn Recruiter — different app, different DOM.
-  if (location.hostname.includes("recruiter.linkedin.com")) return;
+  // Never run on LinkedIn Recruiter or Talent pages — different app, different DOM.
+  const _host = location.hostname;
+  const _path = location.pathname;
+  if (
+    _host.includes("recruiter.linkedin.com") ||
+    _path.startsWith("/talent/") ||
+    _path.startsWith("/hiring/") ||
+    _path.startsWith("/recruiter/") ||
+    _path.startsWith("/tsahp/")
+  ) return;
 
   const BTN_CLASS = "lmt-btn";
   const AI_BTN_CLASS = "lmt-ai-btn";

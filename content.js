@@ -921,12 +921,9 @@
       return;
     }
 
-    // Skip only when CONFIRMED you sent the last message.
-    // null = can't tell → still draft (better to draft than to miss a reply).
-    const needsReply = threadNeedsReply(form);
-    if (needsReply === false) {
+    // Recruiter only — skip auto-draft on normal LinkedIn messaging.
+    if (!isRecruiter()) {
       autoDraftedThreads.add(id);
-      LOG("skip: you sent the last message", id);
       return;
     }
 

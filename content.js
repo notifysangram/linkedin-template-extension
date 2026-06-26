@@ -395,15 +395,16 @@
   }
 
   function findRecruiterToolbar(form) {
-    // Walk up to find the ancestor containing the quick-actions bar
+    // Walk up to find an ancestor containing the quick-actions bar
     let el = form.parentElement;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 15; i++) {
       if (!el) break;
       const qa = el.querySelector("[data-test-quick-actions-container]");
       if (qa) return qa;
       el = el.parentElement;
     }
-    return null;
+    // Fall back to a global search — quick-actions may be a sibling subtree
+    return document.querySelector("[data-test-quick-actions-container]") || null;
   }
 
   function injectButtons(form) {

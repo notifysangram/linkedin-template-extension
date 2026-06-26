@@ -153,22 +153,25 @@
       }
     }
 
-    // Recruiter fallback: walk up from the compose wrapper and look for
-    // sibling elements that contain conversation text (the message scroll area).
+    // Recruiter fallback: find elements that are visually ABOVE the compose box
+    // (the message scroll area sits above the compose in every Recruiter layout).
     if (isRecruiter()) {
+      const formRect = form.getBoundingClientRect();
       let ancestor = form;
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 12; i++) {
         ancestor = ancestor.parentElement;
         if (!ancestor || ancestor === document.body) break;
         for (const sibling of Array.from(ancestor.children)) {
           if (sibling === form || sibling.contains(form)) continue;
+          const rect = sibling.getBoundingClientRect();
+          // Must be visually above the compose area and have meaningful height
+          if (rect.bottom > formRect.top + 40 || rect.height < 60 || rect.width < 200) continue;
           const text = (sibling.innerText || "").trim();
-          if (text.length < 80) continue;
-          // Filter to lines that look like message text (>15 chars, not just dates/times)
+          if (text.length < 40) continue;
           const lines = text.split("\n")
             .map(l => l.trim())
-            .filter(l => l.length > 15 && !/^\d{1,2}:\d{2}/.test(l))
-            .slice(-12);
+            .filter(l => l.length > 10 && !/^\d{1,2}:\d{2}/.test(l))
+            .slice(-15);
           if (lines.length >= 1) return lines.join("\n");
         }
       }
@@ -918,12 +921,6 @@
     if (!form) return;
     if (!composeIsEmpty(form)) {
       autoDraftedThreads.add(id); // never clobber a draft / typed text
-      return;
-    }
-
-    // Recruiter only — skip auto-draft on normal LinkedIn messaging.
-    if (!isRecruiter()) {
-      autoDraftedThreads.add(id);
       return;
     }
 

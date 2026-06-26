@@ -131,7 +131,11 @@
     // Try LinkedIn selector first, then Recruiter fallbacks
     const TRANSCRIPT_SELECTORS = [
       ".msg-s-event-listitem__body",
-      // LinkedIn Recruiter
+      // LinkedIn Recruiter — known and guessed data-test selectors
+      "[data-test-messaging-thread-message-body]",
+      "[data-test-message-body]",
+      "[data-test-inmail-message-body]",
+      "[data-test-compose-thread-message-body]",
       ".recruiter-messaging-message__body",
       ".hiring-messaging-message-body",
       "[data-test-id='message-body']",
@@ -148,6 +152,28 @@
           .join("\n");
       }
     }
+
+    // Recruiter fallback: walk up from the compose wrapper and look for
+    // sibling elements that contain conversation text (the message scroll area).
+    if (isRecruiter()) {
+      let ancestor = form;
+      for (let i = 0; i < 10; i++) {
+        ancestor = ancestor.parentElement;
+        if (!ancestor || ancestor === document.body) break;
+        for (const sibling of Array.from(ancestor.children)) {
+          if (sibling === form || sibling.contains(form)) continue;
+          const text = (sibling.innerText || "").trim();
+          if (text.length < 80) continue;
+          // Filter to lines that look like message text (>15 chars, not just dates/times)
+          const lines = text.split("\n")
+            .map(l => l.trim())
+            .filter(l => l.length > 15 && !/^\d{1,2}:\d{2}/.test(l))
+            .slice(-12);
+          if (lines.length >= 1) return lines.join("\n");
+        }
+      }
+    }
+
     return "";
   }
 
@@ -1144,8 +1170,14 @@
   let scanTimer = null;
   let lastScan = 0;
   const SCAN_INTERVAL = 500;
+  let _lastObservedPath = location.pathname;
   const observer = new MutationObserver(() => {
     const now = Date.now();
+    // Detect SPA navigation (pushState changes URL without firing popstate)
+    if (location.pathname !== _lastObservedPath) {
+      _lastObservedPath = location.pathname;
+      scheduleOpenDraft();
+    }
     if (now - lastScan >= SCAN_INTERVAL) {
       lastScan = now;
       scan();

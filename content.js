@@ -1146,10 +1146,6 @@
   // Kick off analytics scrape when on the right page.
   if (isAnalyticsPage()) scheduleAnalyticsScrape();
 
-  // Also re-try when the SPA navigates within LinkedIn.
+  // Re-try analytics scrape when the SPA navigates.
   window.addEventListener('popstate', scheduleAnalyticsScrape);
-  const _pushState = history.pushState.bind(history);
-  history.pushState = (...args) => { _pushState(...args); scheduleAnalyticsScrape(); };
-  const _replaceState = history.replaceState.bind(history);
-  history.replaceState = (...args) => { _replaceState(...args); scheduleAnalyticsScrape(); };
 })();

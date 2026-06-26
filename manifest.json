@@ -28,6 +28,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.linkedin.com/*"],
+      "exclude_matches": ["https://recruiter.linkedin.com/*"],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"

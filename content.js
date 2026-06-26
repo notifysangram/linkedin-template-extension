@@ -934,6 +934,10 @@
       autoToast(`Drafting a reply${firstName ? ` to ${firstName}` : ""}…`, 6000);
       const g = await sendBg({ type: "lmt:generate", transcript, firstName });
       if (g && g.ok) {
+        if (g.reply.trim() === "__SKIP__") {
+          // Claude determined Sangram sent the last message — nothing to draft.
+          return;
+        }
         const ed = editorOf(form);
         if (ed && composeIsEmpty(form)) {
           insertIntoEditor(ed, g.reply);

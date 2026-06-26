@@ -28,6 +28,8 @@ Respond with ONLY a JSON object of the form {"job_outreach": true|false, "reason
 
 const GENERATE_SYSTEM = `You draft a short, warm, professional LinkedIn reply on behalf of Sangram. Output ONLY the reply text — no preamble, no quotes, no subject line, no explanation. Keep it to a few short sentences.
 
+IMPORTANT: If Sangram's message is already the most recent one in the conversation and there is no new message from the other person to reply to, output ONLY the single token: __SKIP__. Do not write a reply in that case.
+
 Formatting rules (always):
 - Begin with "Hi <first name>," using the recipient's first name provided to you.
 - End with these two lines exactly:

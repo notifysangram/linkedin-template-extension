@@ -1112,11 +1112,21 @@
     }
   }
 
+  function isLinkedInMessaging() {
+    const p = location.pathname;
+    return (
+      !p.startsWith("/talent/") &&
+      !p.startsWith("/hiring/") &&
+      !p.startsWith("/recruiter/") &&
+      !p.startsWith("/tsahp/")
+    );
+  }
+
   // ---------- boot ----------
   const observer = new MutationObserver(() => scan());
 
   function scan() {
-    if (!alive()) {
+    if (!alive() || !isLinkedInMessaging()) {
       observer.disconnect();
       return;
     }

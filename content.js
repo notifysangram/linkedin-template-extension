@@ -921,12 +921,12 @@
       return;
     }
 
-    // Only draft when CONFIRMED the other person sent the last message.
-    // false = you sent last (skip), null = can't tell (skip to be safe).
+    // Skip only when CONFIRMED you sent the last message.
+    // null = can't tell → still draft (better to draft than to miss a reply).
     const needsReply = threadNeedsReply(form);
-    if (needsReply !== true) {
+    if (needsReply === false) {
       autoDraftedThreads.add(id);
-      LOG(needsReply === false ? "skip: you sent the last message" : "skip: couldn't confirm other person sent last", id);
+      LOG("skip: you sent the last message", id);
       return;
     }
 

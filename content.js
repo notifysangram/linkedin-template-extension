@@ -1,21 +1,13 @@
 (() => {
-  // Never run on LinkedIn Recruiter or Talent pages — different app, different DOM.
-  const _host = location.hostname;
-  const _path = location.pathname;
-  if (
-    _host.includes("recruiter.linkedin.com") ||
-    _path.startsWith("/talent/") ||
-    _path.startsWith("/hiring/") ||
-    _path.startsWith("/recruiter/") ||
-    _path.startsWith("/tsahp/")
-  ) return;
-
   const BTN_CLASS = "lmt-btn";
   const AI_BTN_CLASS = "lmt-ai-btn";
   const PICKER_CLASS = "lmt-picker";
   const PANEL_CLASS = "lmt-ai-panel";
 
-  const isRecruiter = () => false;
+  const isRecruiter = () =>
+    location.pathname.startsWith("/talent/") ||
+    location.pathname.startsWith("/hiring/") ||
+    location.pathname.startsWith("/recruiter/");
 
   // True only while this content script is still connected to its extension.
   // After the extension is reloaded/updated, chrome.runtime.id becomes
@@ -213,9 +205,10 @@
   function editorOf(form) {
     return (
       form.querySelector(".msg-form__contenteditable") ||
-      // LinkedIn Recruiter — plain textarea
+      // LinkedIn Recruiter — plain textarea (try specific selectors first, then any textarea)
       form.querySelector("textarea[data-test-compose-textarea-input]") ||
-      form.querySelector("textarea.compose-textarea__textarea")
+      form.querySelector("textarea.compose-textarea__textarea") ||
+      form.querySelector("textarea")
     );
   }
 

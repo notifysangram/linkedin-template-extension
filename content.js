@@ -394,51 +394,61 @@
     panel.appendChild(actions);
   }
 
-  function findRecruiterToolbar(form) {
-    // Walk up to find an ancestor containing the quick-actions bar
-    let el = form.parentElement;
-    for (let i = 0; i < 15; i++) {
-      if (!el) break;
-      const qa = el.querySelector("[data-test-quick-actions-container]");
-      if (qa) return qa;
-      el = el.parentElement;
-    }
-    // Fall back to a global search — quick-actions may be a sibling subtree
-    return document.querySelector("[data-test-quick-actions-container]") || null;
-  }
-
   function injectButtons(form) {
-    const toolbar =
-      form.querySelector(".msg-form__left-actions") ||
-      form.querySelector(".msg-form__footer") ||
-      findRecruiterToolbar(form) ||
-      form;
+    const editor = editorOf(form);
+    const isRecruiterForm = editor && editor.tagName === "TEXTAREA";
 
-    if (!form.querySelector("." + BTN_CLASS) && !toolbar.querySelector("." + BTN_CLASS)) {
+    if (isRecruiterForm) {
+      // Recruiter: inject a stable container directly inside the compose wrapper.
+      // Avoid injecting into Ember-managed components (quick-actions) which get wiped on re-render.
+      const CONTAINER_ID = "lmt-recruiter-btns";
+      if (form.querySelector("#" + CONTAINER_ID)) return; // already injected
+      const container = document.createElement("div");
+      container.id = CONTAINER_ID;
+      container.style.cssText = "display:flex;gap:6px;padding:4px 6px;flex-wrap:wrap;";
+
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = BTN_CLASS;
       btn.textContent = "Templates";
       btn.title = "Insert a saved template (⌘⇧L)";
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openPicker(form, btn);
-      });
-      toolbar.appendChild(btn);
-    }
+      btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openPicker(form, btn); });
 
-    if (!form.querySelector("." + AI_BTN_CLASS) && !toolbar.querySelector("." + AI_BTN_CLASS)) {
       const aiBtn = document.createElement("button");
       aiBtn.type = "button";
       aiBtn.className = AI_BTN_CLASS;
       aiBtn.textContent = "AI Assist";
       aiBtn.title = "Classify this message and draft a reply with Claude";
-      aiBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openAiPanel(form, aiBtn);
-      });
+      aiBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openAiPanel(form, aiBtn); });
+
+      container.append(btn, aiBtn);
+      form.appendChild(container);
+      return;
+    }
+
+    // Regular LinkedIn: inject into the msg-form toolbar
+    const toolbar =
+      form.querySelector(".msg-form__left-actions") ||
+      form.querySelector(".msg-form__footer") ||
+      form;
+
+    if (!form.querySelector("." + BTN_CLASS)) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = BTN_CLASS;
+      btn.textContent = "Templates";
+      btn.title = "Insert a saved template (⌘⇧L)";
+      btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openPicker(form, btn); });
+      toolbar.appendChild(btn);
+    }
+
+    if (!form.querySelector("." + AI_BTN_CLASS)) {
+      const aiBtn = document.createElement("button");
+      aiBtn.type = "button";
+      aiBtn.className = AI_BTN_CLASS;
+      aiBtn.textContent = "AI Assist";
+      aiBtn.title = "Classify this message and draft a reply with Claude";
+      aiBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openAiPanel(form, aiBtn); });
       toolbar.appendChild(aiBtn);
     }
   }

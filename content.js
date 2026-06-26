@@ -1,10 +1,13 @@
 (() => {
+  // Never run on LinkedIn Recruiter — different app, different DOM.
+  if (location.hostname.includes("recruiter.linkedin.com")) return;
+
   const BTN_CLASS = "lmt-btn";
   const AI_BTN_CLASS = "lmt-ai-btn";
   const PICKER_CLASS = "lmt-picker";
   const PANEL_CLASS = "lmt-ai-panel";
 
-  const isRecruiter = () => location.hostname.includes("recruiter.linkedin.com");
+  const isRecruiter = () => false;
 
   // True only while this content script is still connected to its extension.
   // After the extension is reloaded/updated, chrome.runtime.id becomes
